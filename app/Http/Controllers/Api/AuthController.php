@@ -8,24 +8,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use App\Services\AuthService;
 
 class AuthController extends Controller
 {
+    public function __construct(protected AuthService $authService)
+    {
+    }
+
     public function register(Request $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
-            'password' => ['required', 'confirmed', Password::defaults()],
-            'role' => ['nullable', Rule::in(['user', 'admin'])],
-        ]);
-
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'user',
-        ]);
+        $user = $this->authService->register($request);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -38,17 +31,7 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
-        ]);
-
-        /** @var User|null $user */
-        $user = User::where('email', $credentials['email'])->first();
-
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 422);
-        }
+        $user = $this->authService->login($request);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

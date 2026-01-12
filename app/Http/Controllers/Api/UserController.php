@@ -13,7 +13,7 @@ class UserController extends Controller
         $users = User::query()
             ->when($request->get('role'), fn ($q, $role) => $q->where('role', $role))
             ->latest()
-            ->paginate(15);
+            ->paginate(20);
 
         return response()->json($users);
     }
