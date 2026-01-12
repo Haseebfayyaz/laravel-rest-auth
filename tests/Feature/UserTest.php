@@ -146,9 +146,7 @@ test('user cannot login with invalid credentials', function () {
     $response = $this->postJson('/api/auth/login', $credentials);
 
     $response->assertStatus(422)
-        ->assertJson([
-            'message' => 'Invalid credentials',
-        ]);
+        ->assertJsonValidationErrors(['email']);
 });
 
 test('user cannot login with non-existent email', function () {
@@ -160,9 +158,7 @@ test('user cannot login with non-existent email', function () {
     $response = $this->postJson('/api/auth/login', $credentials);
 
     $response->assertStatus(422)
-        ->assertJson([
-            'message' => 'Invalid credentials',
-        ]);
+        ->assertJsonValidationErrors(['email']);
 });
 
 test('login requires email and password', function () {

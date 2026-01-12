@@ -2,17 +2,29 @@
 
 namespace App\Services;
 
+use App\Events\UserRegistered;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
-class AuthService {
-    public function __construct() {
+class AuthService
+{
+    public function __construct()
+    {
     }
 
-    public function register(Request $request){
+    /**
+     * Register a new user
+     *
+     * @param Request $request
+     * @return User
+     * @throws ValidationException
+     */
+    public function register(Request $request): User
+    {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
@@ -27,11 +39,21 @@ class AuthService {
             'role' => $validated['role'] ?? 'user',
         ]);
 
-        return $user;
+        // Dispatch event to send email verification
+        event(new UserRegistered($user));
 
+        return $user;
     }
 
-    public function login(Request $request){
+    /**
+     * Authenticate a user and return the user model
+     *
+     * @param Request $request
+     * @return User
+     * @throws ValidationException
+     */
+    public function login(Request $request): User
+    {
         $credentials = $request->validate([
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
@@ -40,10 +62,29 @@ class AuthService {
         $user = User::where('email', $credentials['email'])->first();
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 422);
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
         }
 
         return $user;
     }
 
+    /**
+     * Refresh the authentication token for the current user
+     *
+     * @param User $user
+     * @return string
+     */
+    public function refreshToken(User $user): string
+    {
+        // Delete the current token
+        $token = $user->currentAccessToken();
+        if ($token) {
+            $token->delete();
+        }
+
+        // Create and return new token
+        return $user->createToken('auth_token')->plainTextToken;
+    }
 }

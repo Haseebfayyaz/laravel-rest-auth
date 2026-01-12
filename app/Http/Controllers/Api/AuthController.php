@@ -80,18 +80,91 @@ class AuthController extends Controller
 
     public function refresh(Request $request)
     {
-        $token = $request->user()->currentAccessToken();
+        /** @var User $user */
+        $user = $request->user();
 
-        if ($token) {
-            $token->delete();
-        }
-
-        $newToken = $request->user()->createToken('auth_token')->plainTextToken;
+        $newToken = $this->authService->refreshToken($user);
 
         return response()->json([
             'token' => $newToken,
             'token_type' => 'Bearer',
         ]);
+    }
+
+    /**
+     * Mark the user's email as verified.
+     */
+    public function verifyEmail(Request $request)
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Email already verified.',
+            ], 400);
+        }
+
+        if ($user->markEmailAsVerified()) {
+            return response()->json([
+                'message' => 'Email verified successfully.',
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Email verification failed.',
+        ], 400);
+    }
+
+    /**
+     * Resend the email verification notification.
+     */
+    public function resendVerificationEmail(Request $request)
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Email already verified.',
+            ], 400);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return response()->json([
+            'message' => 'Verification email sent successfully.',
+        ]);
+    }
+
+    /**
+     * Verify email from the signed URL in the email.
+     */
+    public function verifyEmailFromLink(Request $request, $id, $hash)
+    {
+        $user = User::findOrFail($id);
+
+        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return response()->json([
+                'message' => 'Invalid verification link.',
+            ], 400);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Email already verified.',
+            ], 400);
+        }
+
+        if ($user->markEmailAsVerified()) {
+            return response()->json([
+                'message' => 'Email verified successfully.',
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Email verification failed.',
+        ], 400);
     }
 }
 
